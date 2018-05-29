@@ -6,39 +6,9 @@ import Result from '../util/result';
 import ParsingError from '../util/parsing_error';
 import ParserResult from '../util/parser_result';
 import StringProvider from '../util/string_provider';
-import CommandNode from'./command_node';
+import {CommandArgument} from './command_argument';
 
 type Argument = CommandArgument | {source: string, definitions?: {[key: string]: string[]}};
-export interface CommandArgument {
-    /**
-     * Source string of the argument
-     */
-    source: string;
-    /**
-     * Parsed data object
-     */
-    parsedData: any;
-
-    /**
-     * Data for refactoring and usage analysis
-     * Keys are the types, such as objective and tag
-     */
-    data: {
-        definitions: {[key: string]: string[]},
-        references: {[key: string]: string[]},
-        resourceLocations: {[key: string]: string[]}
-    };
-
-    /**
-     * Command node of this argument
-     */
-    node: CommandNode;
-
-    /**
-     * Get Error list of the argument
-     */
-    getErrors(): ParsingError[];
-}
 
 const SPACE_ARGUMENT: Argument = {source: ' '};
 

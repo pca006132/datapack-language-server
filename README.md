@@ -3,7 +3,7 @@
 ## 计划支持功能
 
 * 编辑器命令：如注释、取消注释、生成命令等
-* Tag、名称、假名定义，使用注释，格式：`# define <类型> <名称>`，如 `# define tag a`
+* Tag、名称、假名定义，使用注释，格式：`#define <类型> <名称>`，如 `#define tag a`
 * 错误提示
 * 自动补全
 * 悬浮字词提示
@@ -18,31 +18,70 @@
 
 ### 资料来源
 
-命令补全、检查等资料来自于 commands.json（不是mc里的，是自制的） 。下文将以 commandNode 代表 commands.json 内的不同节点，argumentNode 代表 commandNode & argument data 合并而成的节点。Argument data 包括 argument 源字串及解析用数据。
+命令补全、检查等资料来自于 commands.json（不是mc里的，是自制的） 。下文将以 CommandNode 代表 commands.json 内的不同节点，ArgumentNode 代表一整个 Argument 节点，包括解析出的数据、源字串等。
 
 NBT 等资料处理亦与上方做法大同小异。
 
 ### 解析器
 
 * 使用 pull parser，即向 line 物件获取下一个字符。这样可以在不需要有之后的 argumentNode 的时候获取到之后的字符，也可以让 line 物件得知解析时影响到的其他 argumentNode。
-* 回传  `ParserResult: {node?: 解析到的节点, errors?: 解析错误列表, refereces: 资源引用，如记分项、Tag、函数等等, end: 是否可以完结}`。node 和 error 至少需要存在一个，可以同时存在。
+* 回传  `ParserResult`。
 * 尽量解析，遇到错误尝试加到解析错误列表并且跳过。真的跳不过才把之后的东西都放进那 node 里以不对该行之后部分进行解析（应当是稀有情况）。
+
+解析器主要分为两种：
+* 分派解析器：把工作分配给实际解析器。在所有解析器均不能解析（不只是错误，而是完全无法解析）的时候，采取特别做法（只有一个 child 的话，则把字串强行当作该 Node，设置错误信息，并且尝试之后解析；不止一个 children 的话，则把之后的命令设置为特殊 ArgumentNode 并且显示为错误）。
+* 实际解析器：检查字符是否吻合，如果吻合则继续解析，尝试忽略错误尽量解析，返回解析结果（不吻合则没有解析结果）及错误列表。（如果吻合，无论有没有错误都不会给下一个解析器解析，故此解析器解析的顺序相当重要）
+
+
+```typescript
+function parseLiteral(node: CommandNode, provider: StringProvider, lineNum: number): ParserResult<CommandArgument> {
+    let i = 0;
+    const predicate = (c)=> {
+        if (i === node.data!.length) {
+            return Result.createOk<boolean, string>(false);
+        } else {
+            if (c === node.data![i++]) {
+                return Result.createOk<boolean, string>(true);
+            } else {
+                return Result.createErr<boolean, string>('Incorrect literal');
+            }
+        }
+    }
+    const result = provider.getSegment(predicate);
+    if (result.isOk() && result.unwrap() === node.data!) {
+        const result = {
+            source: result.unwrap(),
+            node: node,
+            getErrors: ()=>[],
+            editSource: (start: number, end: number, text: string)=>{
+                defaultEditSource(result, start, end, text);
+            }
+        }
+        return {
+            result: result,
+            errors: []
+        };
+    } else {
+        return {errors: []};
+    }
+}
+```
+
+对于较为复杂的参数，如 NBT、选择器等，可以在 CommandArgument 里的 parsedData 里生成树状结构进行解析。
 
 ### 行处理
 
-把文件拆成不同行。每行都有错误列表、定义列表、引用列表、数据节点，以及一些供解析器调用的函数。数据节点可能为 argumentNode[]、comment node 或是 definition node。文件编辑将会被分拆成不同的行编辑处理。以下为 argumentNode[] 行处理里的不同情况（相对于内存里的行列表数据）：
+把文件拆成不同行。每行都有错误列表、定义列表、引用列表、数据节点，以及一些供解析器调用的函数。数据节点为 ArgumentNode[]。文件编辑将会被分拆成不同的行编辑处理。
 
-* 在行末增加字符（或添加一整行）：根据前一个node 来对字符进行处理，生成 argumentNode。
-* 在行末删除字符：首个被影响到的 argumentNode，从那里开始重新解析。
-* 其他情况，如在行首添加字符、在行中间删除字符等：计算首个被影响到的 argument Node，进行解析。如果 pull 到的字串不影响之后的节点，并且之后一个节点是本节点的子节点，则不需要对后方进行处理，否则则重复进行本步骤。
+> 注释整行为单一 ArgumentNode。
 
-Comment node 或 definition node 则每次都需要重新解析。
+当有行修改的时候，如果整个 Argument Node 都在修改范围内，则删除该 Node。如果该 Node 只有部分内容在修改范围内，则把改变加入那 Node，并且标记为 modified。然后对第一个被修改的/在被删除的 Node 之后的 Node 开始解析。直至修改了的 Node 全部被解析完毕，并且 pull 的时候没影响到之后的 Node，以及之后的 Node 是当前 Node 的 child。
 
-#### 实现
+### 补全及提示
 
-先找出首个被影响的 node（算节点 raw string 长度），在此开始解析。如果到了修改开始的位置，则先提供修改的字串直至耗尽修改字符。
+大致运作：找出前一个 Node，遍历所有 children，提供可能补全及提示。
 
-如果修改尚未被耗尽，或者 pull 到的字串影响了之后的节点，或者之后一个节点不是当前解析节点的子节点，则需要继续解析。
+如果所在是一个 CommandNode，则尝试调用解析器使用 CommandNode 的 ParsedData 提供补全数据（可能是树结构，实际运作和上方大同小异）。
 
 ### 文件缓存
 

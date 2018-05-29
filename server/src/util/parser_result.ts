@@ -7,7 +7,7 @@ export default interface ParserResult<T> {
     /**
      * Parser result data, may include node and other data, definitions for example
      */
-    result: T;
+    result?: T;
     /**
      * Errors while parsing
      */
