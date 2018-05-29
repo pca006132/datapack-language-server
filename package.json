@@ -1,0 +1,20 @@
+{
+    "name": "datapack-language-server",
+    "version": "0.0.1",
+    "description": "Language server for Minecraft datapack",
+    "publisher": "vscode",
+    "scripts": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pca006132/datapack-language-server.git"
+    },
+    "author": "pca006132 <pca006132@gmail.com>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/pca006132/datapack-language-server/issues"
+    },
+    "homepage": "https://github.com/pca006132/datapack-language-server#readme",
+    "dependencies": {
+        "@types/node": "^10.1.3"
+    }
+}

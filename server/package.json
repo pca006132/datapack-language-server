@@ -1,0 +1,27 @@
+{
+    "name": "datapack-language-server-backend",
+    "version": "0.0.1",
+    "description": "Language server for Minecraft datapack",
+    "publisher": "vscode",
+    "scripts": {
+        "installServer": "installServerIntoExtension ../client ./package.json ./tsconfig.json",
+		"compile": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -p .",
+		"watch": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -w -p ."
+    },
+    "engines": {
+        "node": "*"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pca006132/datapack-language-server.git"
+    },
+    "author": "pca006132 <pca006132@gmail.com>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/pca006132/datapack-language-server/issues"
+    },
+    "homepage": "https://github.com/pca006132/datapack-language-server#readme",
+    "dependencies": {
+        "vscode-languageserver": "^4.1.3"
+    }
+}
