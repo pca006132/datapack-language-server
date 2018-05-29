@@ -3,6 +3,7 @@
         "module": "commonjs",
         "target": "es6",
         "strict": true,
+        "strictNullChecks": true,
         "sourceMap": false,
         "outDir": "../client/server"
     }

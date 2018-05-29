@@ -1,7 +1,7 @@
 import Result from './result';
 
 /**
- * StringProvider interface: StringProvider for pull parsers
+ * StringProvider for pull parsers
  */
 export default interface StringProvider {
     /**
@@ -20,11 +20,20 @@ export default interface StringProvider {
      */
     getSegment(predicate: (char: string)=>Result<boolean, string>): Result<string, string>;
     /**
+     * Return the index of the current character
+     */
+    getPos(): number;
+    /**
      * Move the pointer to the character (make it the current character).
      * Ok(null) would be returned for success result, and Err(str) would be returned when the pos is not a valid position in the string provider.
      * @param pos Position of the character
      */
     moveTo(pos: number): Result<null, string>;
+    /**
+     * Get the remaining string from this string provider starting from the current character.
+     * Note that this method has no side effect, it would not trigger any changes.
+     */
+    getRemaining(): string;
     /**
      * Returns whether there are more characters to be parsed.
      */

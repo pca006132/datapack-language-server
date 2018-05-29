@@ -1,9 +1,8 @@
-/**
- * Type definition for parsing error
- */
-
 import {Range, DiagnosticSeverity, Diagnostic} from 'vscode-languageserver';
 
+/**
+ * Definition for parsing error
+ */
 export default class ParsingError {
     range: Range;
     problem: string;

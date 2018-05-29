@@ -18,7 +18,7 @@
 
 ### 资料来源
 
-命令补全、检查等资料来自于 commands.json 。下文将以 sourceNode 代表 commands.json 内的不同节点（以及一个 key 属性储存该节点的 key），argumentNode 代表 sourceNode& argument data 合并而成的节点。Argument data 包括 argument 源字串及解析用数据。
+命令补全、检查等资料来自于 commands.json（不是mc里的，是自制的） 。下文将以 commandNode 代表 commands.json 内的不同节点，argumentNode 代表 commandNode & argument data 合并而成的节点。Argument data 包括 argument 源字串及解析用数据。
 
 NBT 等资料处理亦与上方做法大同小异。
 
