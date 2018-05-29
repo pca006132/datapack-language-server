@@ -8,7 +8,8 @@ import ParserResult from '../util/parser_result';
 import StringProvider from '../util/string_provider';
 import CommandNode from'./command_node';
 
-export interface Argument {
+type Argument = CommandArgument | {source: string, definitions?: {[key: string]: string[]}};
+export interface CommandArgument {
     /**
      * Source string of the argument
      */
@@ -16,7 +17,7 @@ export interface Argument {
     /**
      * Parsed data object
      */
-    parsedData?: object;
+    parsedData: any;
 
     /**
      * Data for refactoring and usage analysis
@@ -26,20 +27,37 @@ export interface Argument {
         definitions: {[key: string]: string[]},
         references: {[key: string]: string[]},
         resourceLocations: {[key: string]: string[]}
-    }
+    };
 
     /**
      * Command node of this argument
      */
-    node: CommandNode
+    node: CommandNode;
 
+    /**
+     * Get Error list of the argument
+     */
     getErrors(): ParsingError[];
 }
 
-class Line {
-    arguments: Argument[] = [];
+const SPACE_ARGUMENT: Argument = {source: ' '};
 
-    constructor() {
+class Line {
+    arguments: (Argument&{modified: boolean})[] = [];
+    comment: boolean = false;
+    errors: ParsingError[] = [];
+    data: {
+        definitions: {[key: string]: string[]},
+        references: {[key: string]: string[]},
+        resourceLocations: {[key: string]: string[]}
+    } = {definitions: {}, references: {}, resourceLocations: {}};
+
+    diagnosticCallback: ()=>void;
+    dataCallback: ()=>void;
+
+    constructor(diagnosticCallback: ()=>void, dataCallback: ()=>void) {
+        this.diagnosticCallback = diagnosticCallback;
+        this.dataCallback = dataCallback;
     }
 
 
@@ -51,7 +69,7 @@ class Provider implements StringProvider {
     index=0;
     offset = 0;
     argumentIndex = 0;
-    currentArgument: Argument|undefined;
+    currentArgument: Argument&{modified: boolean}|undefined;
 
     constructor(line: Line, lineNum: number) {
         this.line = line;
@@ -65,6 +83,7 @@ class Provider implements StringProvider {
             return Result.createErr<string, string>('End of string');
         }
         this.index++;
+        //fix invalid offset caused by the previous run of getChar()
         if (this.offset >= this.currentArgument.source.length) {
             this.offset = 0;
             if (++this.argumentIndex >= this.line.arguments.length) {
@@ -116,6 +135,7 @@ class Provider implements StringProvider {
             if (!r.unwrap()) {
                 //rewind 1 character and return
                 this.offset--;
+                this.index--;
                 if (this.offset === -1) {
                     this.currentArgument = this.line.arguments[--this.argumentIndex];
                     this.offset = this.currentArgument.source.length - 1;
