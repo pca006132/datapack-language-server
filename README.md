@@ -32,41 +32,6 @@ NBT 等资料处理亦与上方做法大同小异。
 * 分派解析器：把工作分配给实际解析器。在所有解析器均不能解析（不只是错误，而是完全无法解析）的时候，采取特别做法（只有一个 child 的话，则把字串强行当作该 Node，设置错误信息，并且尝试之后解析；不止一个 children 的话，则把之后的命令设置为特殊 ArgumentNode 并且显示为错误）。
 * 实际解析器：检查字符是否吻合，如果吻合则继续解析，尝试忽略错误尽量解析，返回解析结果（不吻合则没有解析结果）及错误列表。（如果吻合，无论有没有错误都不会给下一个解析器解析，故此解析器解析的顺序相当重要）
 
-
-```typescript
-function parseLiteral(node: CommandNode, provider: StringProvider, lineNum: number): ParserResult<CommandArgument> {
-    let i = 0;
-    const predicate = (c)=> {
-        if (i === node.data!.length) {
-            return Result.createOk<boolean, string>(false);
-        } else {
-            if (c === node.data![i++]) {
-                return Result.createOk<boolean, string>(true);
-            } else {
-                return Result.createErr<boolean, string>('Incorrect literal');
-            }
-        }
-    }
-    const result = provider.getSegment(predicate);
-    if (result.isOk() && result.unwrap() === node.data!) {
-        const result = {
-            source: result.unwrap(),
-            node: node,
-            getErrors: ()=>[],
-            editSource: (start: number, end: number, text: string)=>{
-                defaultEditSource(result, start, end, text);
-            }
-        }
-        return {
-            result: result,
-            errors: []
-        };
-    } else {
-        return {errors: []};
-    }
-}
-```
-
 对于较为复杂的参数，如 NBT、选择器等，可以在 CommandArgument 里的 parsedData 里生成树状结构进行解析。
 
 ### 行处理

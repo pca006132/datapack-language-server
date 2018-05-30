@@ -30,17 +30,4 @@ export interface CommandArgument {
      * Get Error list of the argument
      */
     getErrors(): ParsingError[];
-
-    /**
-     * Edit the source of the argument allowing parsers to edit complicated parsedData efficiently by incremental parsing.
-     * defaultEditSource function is provided for simple nodes.
-     * @param start Starting position of the edit
-     * @param end Ending position of the edit (inclusive)
-     * @param text Replacement text
-     */
-    editSource(start: number, end: number, text: string): void;
-}
-
-export function defaultEditSource(arg: CommandArgument, start: number, end: number, text: string) {
-    arg.source = arg.source.substring(0, start) + text + arg.source.substring(end+1);
 }
