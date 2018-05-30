@@ -4,19 +4,19 @@ import {Range, DiagnosticSeverity, Diagnostic} from 'vscode-languageserver';
  * Definition for parsing error
  */
 export default class ParsingError {
-    range: Range;
+    range: {start: number, end: number};
     problem: string;
     severity: DiagnosticSeverity;
     solution?: string;
 
     /**
      * Constructor of ParsingError
-     * @param range Range of the error
+     * @param range Range of the error, start and end are the index of the starting and ending character (inclusive)
      * @param problem Error problem, `invalid escape sequence` for example
      * @param hint Possible solution
      * @param severity Severity of the problem, default `error`
      */
-    constructor(range: Range, problem: string, solution?: string, severity: DiagnosticSeverity = 1) {
+    constructor(range: {start: number, end: number}, problem: string, solution?: string, severity: DiagnosticSeverity = 1) {
         this.range = range;
         this.problem = problem;
         this.solution = solution;
@@ -29,10 +29,11 @@ export default class ParsingError {
 
     /**
      * Get compiler diagnostic
+     * @param lineNum Line number of the diagnostic
      */
-    getDiagnostic(): Diagnostic {
+    getDiagnostic(lineNum: number): Diagnostic {
         return {
-            range: this.range,
+            range: {start: {character: this.range.start, line: lineNum}, end: {character: this.range.end, line: lineNum}},
             severity: this.severity,
             source: 'datapack',
             message: this.getMsg()

@@ -4,7 +4,7 @@
 
 import Result from '../util/result';
 import ParsingError from '../util/parsing_error';
-import ParserResult from '../util/parser_result';
+import {ParserResult} from '../util/parser';
 import StringProvider from '../util/string_provider';
 import {CommandArgument} from './command_argument';
 
