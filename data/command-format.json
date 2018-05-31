@@ -1,0 +1,52 @@
+{
+    "advancement": {
+        "data": "advancement",
+        "children": [
+            {
+                "data": [
+                    "grant",
+                    "revoke"
+                ],
+                "chilren": [
+                    {
+                        "parser": "entity",
+                        "children": [
+                            {
+                                "data": "everything",
+                                "executable": true
+                            },
+                            {
+                                "data": "only",
+                                "children": [
+                                    {
+                                        "parser": "advancement",
+                                        "executable": true,
+                                        "children": [
+                                            {
+                                                "parser": "advancement",
+                                                "executable": true
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "data": [
+                                    "from",
+                                    "through",
+                                    "until"
+                                ],
+                                "children":[
+                                    {
+                                        "parser":"advancement",
+                                        "executable": true
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
