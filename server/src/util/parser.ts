@@ -20,10 +20,6 @@ export interface ParserResult<T> {
  */
 export interface ParserParameter<T> {
     /**
-     * Previous node, may not exist
-     */
-    previous?: T;
-    /**
      * Current node
      */
     current: T;

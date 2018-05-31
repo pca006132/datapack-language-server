@@ -32,7 +32,27 @@ NBT 等资料处理亦与上方做法大同小异。
 * 分派解析器：把工作分配给实际解析器。在所有解析器均不能解析（不只是错误，而是完全无法解析）的时候，采取特别做法（只有一个 child 的话，则把字串强行当作该 Node，设置错误信息，并且尝试之后解析；不止一个 children 的话，则把之后的命令设置为特殊 ArgumentNode 并且显示为错误）。
 * 实际解析器：检查字符是否吻合，如果吻合则继续解析，尝试忽略错误尽量解析，返回解析结果（不吻合则没有解析结果）及错误列表。（如果吻合，无论有没有错误都不会给下一个解析器解析，故此解析器解析的顺序相当重要）
 
-对于较为复杂的参数，如 NBT、选择器等，可以在 CommandArgument 里的 parsedData 里生成树状结构进行解析。
+对于较为复杂的参数，如 NBT、选择器等，可以在 CommandArgument 里的 parsedData 里生成树状结构进行解析。解析期间不应该修改 Node 的数据，而是应该 Clone 一个新的。修改时应该找出需要修改的部分，只对该部分（可能包括之后部分）进行解析。
+
+> 屎一样的例子:
+> 比如现在有一条命令: `give @p stone`
+> 其 CommandArgument:
+>     ['give', ' ', '@p[]', ' ', 'stone']
+>
+> 假设我们要把 [8, 8) 的字符改为 `advancement`
+> 解析的时候，line会找出那修改覆盖的第一个及最后一个 CommandArgument，这次两者都是 `@p`
+> 然后line会调用 '@p' 里的 modify，传入 (4, 4, 'advancement')
+> '@p'（选择器）的 modify 会为这修改找出覆盖的第一个及最后一个 node，这情况就是 '['，改为 '[advancement' 并且设置 modified tag 为 true。
+> 然后会删除'[' 到 '[' 之间的CommandArgument，简单来说就是啥也不用删除
+> 之后，如果第一个覆盖到的CommandArgument，这情况下是 '@p[]'，有提供 parse 函数，这情况下有提供，就调用这个parse函数。否则则调用 root 的 parse 函数，传入前一个 node 及 当前 node 的开始 > index。
+>
+> 在选择器里，由于我们第二个 Node 都被改了，所以我们会尝试重新解析第二个 node。
+> 解析到'['，也就是parameter的开始，然后解析到'advancement'，确定为parameter的key。然后我们解析到 ']'，按理说key之后应该是'='和value的，而不是直接出现']'，所以我们会加入一个错误，不过由> 于这错误可以被接受，所以我们会接受那个']'并且完成对选择器的解析，返回一个Selector的CommandArgument。
+>
+> 然后，我们的line接收到那Selector的Command argument，调用 provider 查看是否需要继续解析，返回是不需要(接下来那个没被modify，并且provider的指针指向那argument，证明那玩意完全没被使用过)。
+> 最后，我们把第一个解析的argument（选择器）到provider决定不需要继续解析的argument的前一个（也是选择器），替换为解析出来的argument（1个选择器）。
+>
+> > 注意，解析期间我们是不会对argument进行任何修改的，如果需要，我们应该对之前 argument 进行复制。
 
 ### 行处理
 

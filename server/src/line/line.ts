@@ -8,11 +8,12 @@ import {ParserResult} from '../util/parser';
 import StringProvider from '../util/string_provider';
 import {CommandArgument, SimpleCommandArgument} from './command_argument';
 
-const SPACE_ARGUMENT = new SimpleCommandArgument(' ');
-
 class Line {
+    //spaces should be included in the argument before the space character
     arguments: CommandArgument[] = [];
+    //Whether this line is a comment
     comment: boolean = false;
+    //list of errors in this line
     errors: ParsingError[] = [];
     data: {
         definitions: {[key: string]: string[]},

@@ -9,6 +9,7 @@ export interface CommandArgument {
      */
     source(): StringProvider;
     modify(start: number, end: number, text: string): Result<null, string>;
+    clone(): this;
     modified: boolean;
     /**
      * Parsed data object
@@ -41,6 +42,9 @@ export class SimpleCommandArgument implements CommandArgument {
     modified = false;
     constructor(source: string) {
         this._source = source;
+    }
+    clone() {
+        return new SimpleCommandArgument(this._source) as this;
     }
     source() {
         return new SimpleProvider(this._source);
