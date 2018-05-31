@@ -2,6 +2,7 @@ import Result from './result';
 
 /**
  * StringProvider for pull parsers
+ * Note that, it is assumed that the source of the string will not be changed during providing string
  */
 export default interface StringProvider {
     /**
@@ -22,7 +23,7 @@ export default interface StringProvider {
     /**
      * Return the index of the current character
      */
-    getPos(): number;
+    getIndex(): number;
     /**
      * Move the pointer to the character (make it the current character).
      * Ok(null) would be returned for success result, and Err(str) would be returned when the pos is not a valid position in the string provider.
@@ -38,4 +39,8 @@ export default interface StringProvider {
      * Returns whether there are more characters to be parsed.
      */
     isEnd(): boolean;
+    /**
+     * Returns the length of the whole string
+     */
+    length(): number;
 }

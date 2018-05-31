@@ -11,7 +11,7 @@ export default class ParsingError {
 
     /**
      * Constructor of ParsingError
-     * @param range Range of the error, start and end are the index of the starting and ending character (inclusive)
+     * @param range Range of the error, start and end are the index of the starting and ending character [start, end)
      * @param problem Error problem, `invalid escape sequence` for example
      * @param hint Possible solution
      * @param severity Severity of the problem, default `error`

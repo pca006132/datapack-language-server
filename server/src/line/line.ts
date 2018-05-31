@@ -6,14 +6,12 @@ import Result from '../util/result';
 import ParsingError from '../util/parsing_error';
 import {ParserResult} from '../util/parser';
 import StringProvider from '../util/string_provider';
-import {CommandArgument} from './command_argument';
+import {CommandArgument, SimpleCommandArgument} from './command_argument';
 
-type Argument = CommandArgument | {source: string, definitions?: {[key: string]: string[]}};
-
-const SPACE_ARGUMENT: Argument = {source: ' '};
+const SPACE_ARGUMENT = new SimpleCommandArgument(' ');
 
 class Line {
-    arguments: (Argument&{modified: boolean})[] = [];
+    arguments: CommandArgument[] = [];
     comment: boolean = false;
     errors: ParsingError[] = [];
     data: {
@@ -30,68 +28,82 @@ class Line {
         this.dataCallback = dataCallback;
     }
 
+    modify(start: number, end: number, text: string) {
+        const result = Provider.getProvider(this);
+        if (result.isErr()) {
+            //empty arguments
+            this.arguments.push(new SimpleCommandArgument(text));
+        } else {
+            const provider = result.unwrap();
+            //find starting argument
+            if (provider.moveTo(start).isErr()) {
+                return Result.createErr<null, string>('Index out of range');
+            }
+            const beginning = provider.getArgumentIndex();
+            this.arguments[beginning].modify(provider.getIndexInArgument(), Number.MAX_VALUE, text);
+            provider.moveTo(end);
+            const ending = provider.getArgumentIndex();
+            this.arguments[beginning].modify(0, provider.getIndexInArgument(), '');
 
+            for (let i = ending - 1; i > start; i--) {
+                //delete the arguments between start and end
+                this.arguments.splice(i, 1);
+            }
+
+            //TODO: Reparse the affected portion
+        }
+        return Result.createOk<null, string>(null);
+    }
 }
 
 class Provider implements StringProvider {
-    line: Line;
-    lineNum: number;
-    index=0;
-    offset = 0;
-    argumentIndex = 0;
-    currentArgument: Argument&{modified: boolean}|undefined;
+    private line: Line;
+    private argumentIndex = 0;
+    private index = 0;
+    private currentArgumentProvider: StringProvider;
 
-    constructor(line: Line, lineNum: number) {
+    private constructor(line: Line) {
         this.line = line;
-        this.lineNum = lineNum;
-        if (line.arguments.length > 0)
-            this.currentArgument = line.arguments[0];
+        this.currentArgumentProvider = line.arguments[0].source();
     }
 
     getChar() {
-        if (!this.currentArgument) {
+        if (!this.currentArgumentProvider) {
             return Result.createErr<string, string>('End of string');
         }
         this.index++;
-        //fix invalid offset caused by the previous run of getChar()
-        if (this.offset >= this.currentArgument.source.length) {
-            this.offset = 0;
+        //check if it is needed to move to the next argument
+        while (this.currentArgumentProvider.isEnd()) {
             if (++this.argumentIndex >= this.line.arguments.length) {
                 return Result.createErr<string, string>('End of string');
             }
-            this.currentArgument = this.line.arguments[this.argumentIndex];
+            this.currentArgumentProvider = this.line.arguments[this.argumentIndex].source();
         }
-        return Result.createOk<string, string>(this.currentArgument.source[this.offset++]);
+        return this.currentArgumentProvider.getChar();
     }
     moveTo(pos: number) {
-        const iterate = ()=>{
-            if (!this.currentArgument) {
-                return Result.createErr<null, string>('End of string');
-            }
-            while (this.offset >= this.currentArgument.source.length) {
-                this.offset-=this.currentArgument.source.length;
-                if (++this.argumentIndex >= this.line.arguments.length) {
-                    return Result.createErr<null, string>('End of string');
-                }
-                this.currentArgument = this.line.arguments[this.argumentIndex];
-            }
-            return Result.createOk<null, string>(null);
+        if (pos < 0) {
+            return Result.createErr<null, string>('Invalid pos');
         }
+        //handle number.max pos...
+        pos = Math.min(pos, this.length());
         if (this.index === pos) {
             return Result.createOk<null, string>(null);
         }
-        if (this.index > pos) {
-            this.offset += (pos - this.index);
-        } else {
-            this.argumentIndex = 0;
-            this.offset = pos;
-            this.currentArgument = this.line.arguments[0];
+        let diff = pos - (this.index - this.currentArgumentProvider.getIndex());
+        while (diff < 0) {
+            this.currentArgumentProvider = this.line.arguments[--this.argumentIndex].source();
+            diff += this.currentArgumentProvider.length();
         }
-        this.index = pos;
-        return iterate();
+        while (diff > this.currentArgumentProvider.length()) {
+            diff -= this.currentArgumentProvider.length();
+            this.currentArgumentProvider = this.line.arguments[++this.argumentIndex].source();
+        }
+        this.currentArgumentProvider.moveTo(diff);
+        return Result.createOk<null, string>(null);
     }
     getSegment(predicate: (char: string)=>Result<boolean, string>) {
-        const start = this.getPos();
+        const start = this.getIndex();
         let chars: string[] = [];
         while (!this.isEnd()) {
             //As we have checked if it is ended, so it would never be Err
@@ -104,12 +116,7 @@ class Provider implements StringProvider {
             }
             if (!r.unwrap()) {
                 //rewind 1 character and return
-                this.offset--;
-                this.index--;
-                if (this.offset === -1) {
-                    this.currentArgument = this.line.arguments[--this.argumentIndex];
-                    this.offset = this.currentArgument.source.length - 1;
-                }
+                this.moveTo(this.index--);
                 break;
             }
             chars.push(char);
@@ -117,21 +124,47 @@ class Provider implements StringProvider {
         return Result.createOk<string, string>(chars.join(''));
     }
     getRemaining() {
-        if (!this.currentArgument) {
-            return '';
-        }
         //handle the current argument: substring
-        let portion = this.currentArgument.source.substring(this.offset);
+        let portion = this.currentArgumentProvider.getRemaining();
         //handle the remaining arguments: full string
         for (let i = this.argumentIndex + 1; i++; i < this.line.arguments.length) {
-            portion += this.line.arguments[i].source;
+            portion += this.line.arguments[i].source().getRemaining();
         }
         return portion;
     }
-    getPos() {
+    getIndex() {
         return this.index;
     }
     isEnd() {
-        return Boolean(this.currentArgument && this.offset >= this.currentArgument.source.length && this.argumentIndex === this.line.arguments.length - 1)
+        return this.argumentIndex === this.line.arguments.length - 1 && this.currentArgumentProvider.isEnd();
+    }
+    length() {
+        return this.line.arguments.map(c=>c.source().length()).reduce((previous, current)=>previous + current);
+    }
+
+    /**
+     * Get the current argument index
+     */
+    getArgumentIndex() {
+        return this.argumentIndex;
+    }
+    /**
+     * Return the index in the current argument
+     */
+    getIndexInArgument() {
+        return this.currentArgumentProvider.getIndex();
+    }
+    /**
+     * Returns if the effect of the modification is finished
+     */
+    isModificationFinished() {
+        return !this.line.arguments[this.argumentIndex].modified && this.currentArgumentProvider.getIndex() === 0;
+    }
+
+    static getProvider(line: Line) {
+        if (line.arguments.length > 0) {
+            return Result.createOk<Provider, string>(new Provider(line));
+        }
+        return Result.createErr<Provider, string>('No string provider for empty arguments');
     }
 }
